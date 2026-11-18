@@ -7,18 +7,18 @@ export const LIVRET_A_RATE = 1.7;
 
 export const CATS = {
   fixe: { label: 'Charges fixes', short: 'Fixes', color: '#8fa8ff' },
-  vie: { label: 'Vie courante', short: 'Vie courante', color: '#4ade80' },
-  shopping: { label: 'Shopping', short: 'Shopping', color: '#f0abfc' },
-  dette: { label: 'Dettes ponctuelles', short: 'Dettes', color: '#fbbf24' },
-  revenu: { label: 'Revenus annexes', short: 'Revenus', color: '#5eead4' },
-  autre: { label: 'Hors budget', short: 'Hors budget', color: '#fb923c' },
+  vie: { label: 'Vie courante', short: 'Vie courante', color: '#3ee0a1' },
+  shopping: { label: 'Shopping', short: 'Shopping', color: '#ff7ab8' },
+  dette: { label: 'Dettes ponctuelles', short: 'Dettes', color: '#ffc24b' },
+  revenu: { label: 'Revenus annexes', short: 'Revenus', color: '#5ee0ff' },
+  autre: { label: 'Hors budget', short: 'Hors budget', color: '#ff8a5c' },
 };
 export const CAT_ORDER = ['fixe', 'vie', 'shopping', 'dette', 'revenu'];
 export const SPEND_CATS = ['fixe', 'vie', 'shopping', 'dette', 'autre'];
 
 export const defaultState = () => ({
   version: SCHEMA_VERSION,
-  settings: { salary: 2000, startMonth: '2026-11', remindDays: 7 },
+  settings: { salary: 2000, startMonth: '2026-11', remindDays: 7, firstName: 'Nordine' },
   accounts: [{ id: 'epargne', name: 'Épargne', kind: 'epargne', balance: 900, rate: 0, share: 100 }],
   items: [
     { id: 'maman', name: 'Participation maman', amount: 200, cat: 'fixe', rec: 'mensuel', day: null },

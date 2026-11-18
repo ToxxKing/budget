@@ -60,8 +60,8 @@ export function StoreProvider({ children }) {
   // Pour les réglages internes (bannières) : ne compte pas comme une modification à sauvegarder.
   const updateMeta = useCallback((patch) => setState((s) => ({ ...s, meta: { ...s.meta, ...patch } })), []);
 
-  const notify = useCallback((msg) => {
-    setToast(msg);
+  const notify = useCallback((msg, kind = 'info') => {
+    setToast({ msg, kind, id: Date.now() });
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2400);
   }, []);
@@ -70,7 +70,7 @@ export function StoreProvider({ children }) {
     try {
       const how = await shareOrDownload(backupFilename('json'), toJSON(state), 'application/json');
       updateMeta({ lastBackupAt: new Date().toISOString() });
-      notify(how === 'shared' ? 'Sauvegarde prête' : 'Sauvegarde téléchargée');
+      notify(how === 'shared' ? 'Sauvegarde prête' : 'Sauvegarde téléchargée', 'good');
       return true;
     } catch (e) {
       if (e?.name !== 'AbortError') notify('Sauvegarde impossible sur cet appareil');

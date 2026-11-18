@@ -5,7 +5,9 @@ import { CATS, CAT_ORDER, LIVRET_A_RATE } from '../lib/defaults';
 import { CAT_ICONS } from './icons';
 import { eur, parseAmount, toInput, uid } from '../lib/format';
 import { formatDay, monthLabel, monthRange, todayDayKey } from '../lib/dates';
-import { buildClosing, isEnvelope, shares } from '../lib/engine';
+import { buildClosing, isEnvelope, shares, weekEnvelope } from '../lib/engine';
+import { confetti, confettiFrom } from '../lib/fx';
+import { AnimatedNumber } from './motion';
 import { Sheet, Field, PrimaryBtn, GhostBtn, DangerBtn, Segmented, SwipeRow, MonthSelect } from './ui';
 
 function ConfirmDelete({ label, onConfirm }) {
@@ -38,8 +40,11 @@ export function ExpenseSheet() {
   const save = (e) => {
     e.preventDefault();
     if (!val) return;
+    const env = state.items.find((i) => i.id === itemId);
+    const left = env ? weekEnvelope(state, env).remaining - val : null;
     update((s) => ({ ...s, expenses: [...s.expenses, { id: uid(), itemId: itemId === 'autre' ? null : itemId, amount: val, note: note.trim(), date }] }));
-    notify(`−${eur(val)} enregistré`);
+    if (left != null && left >= 0) confettiFrom(e?.nativeEvent?.submitter || document.activeElement, { count: 22, power: 0.8 });
+    notify(left == null ? `−${eur(val)} hors budget` : left >= 0 ? `C'est noté ! Il reste ${eur(left, 0)} cette semaine` : `Noté, enveloppe dépassée de ${eur(-left, 0)}`, left == null ? 'info' : left >= 0 ? 'good' : 'bad');
     closeSheet();
   };
   return (
@@ -321,7 +326,8 @@ export function CloseSheet() {
   const sh = shares(state.accounts);
   const confirm = () => {
     update((s) => ({ ...s, months: { ...s.months, [key]: snap } }));
-    notify(`${monthLabel(key)} clôturé`);
+    if (snap.saved > 0) confetti({ y: window.innerHeight * 0.4, count: 110, power: 1.5, spread: 1.7 });
+    notify(snap.saved > 0 ? `${monthLabel(key)} clôturé : +${eur(snap.saved, 0)} épargnés !` : `${monthLabel(key)} clôturé`, snap.saved > 0 ? 'party' : 'info');
     closeSheet();
   };
   const diff = snap.saved - snap.planned.saved;
@@ -329,7 +335,7 @@ export function CloseSheet() {
     <Sheet open={open} onClose={closeSheet} title={`Clôturer ${monthLabel(key).toLowerCase()}`}>
       <div className="applecard p-4 mb-4">
         <div className="text-[13px] text-muted">Épargné ce mois</div>
-        <div className={`num text-[36px] font-extrabold leading-none mt-1 ${snap.saved < 0 ? 'text-bad' : ''}`}>{eur(snap.saved)}</div>
+        <AnimatedNumber value={snap.saved} format={(v) => eur(v)} className={`num block text-[36px] font-extrabold leading-none mt-1 ${snap.saved < 0 ? 'text-bad' : ''}`} />
         <div className={`num mt-1 text-[13px] ${diff >= 0 ? 'text-good' : 'text-bad'}`}>{diff >= 0 ? '+' : ''}{eur(diff)} par rapport au prévu ({eur(snap.planned.saved)})</div>
       </div>
       <div className="card divide-y divide-line mb-4 text-[15px]">

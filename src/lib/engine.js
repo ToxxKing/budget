@@ -245,3 +245,38 @@ export function dueInfo(item, key, now = new Date()) {
   const due = new Date(y, m - 1, d);
   return { day: d, date: due, inDays: daysBetween(now, due) };
 }
+
+/* ---------- Série « dans les clous » ---------- */
+/**
+ * Nombre de jours consécutifs (jusqu'à aujourd'hui) où les dépenses cumulées des enveloppes
+ * depuis le début du mois restent sous le budget proratisé à ce jour.
+ */
+export function streakDays(state, now = new Date()) {
+  const envs = state.items.filter(isEnvelope);
+  if (!envs.length) return 0;
+  const startKey = state.settings.startMonth;
+  let d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let n = 0;
+  const cache = new Map();
+  const monthData = (key) => {
+    if (!cache.has(key)) {
+      const budget = envs.reduce((a, it) => a + Math.max(0, it.amount + carryIn(state, key, it.id)), 0);
+      const byDay = new Array(32).fill(0);
+      for (const e of state.expenses) if (e.date.slice(0, 7) === key && envs.some((it) => it.id === e.itemId)) byDay[Number(e.date.slice(8, 10))] += e.amount;
+      cache.set(key, { budget, byDay, D: daysInMonth(key) });
+    }
+    return cache.get(key);
+  };
+  for (let guard = 0; guard < 800; guard++) {
+    const key = monthKeyOf(d);
+    if (key < startKey) break;
+    const { budget, byDay, D } = monthData(key);
+    const day = d.getDate();
+    let cum = 0;
+    for (let i = 1; i <= day; i++) cum += byDay[i];
+    if (cum > (budget * day) / D + 0.005) break;
+    n++;
+    d.setDate(d.getDate() - 1);
+  }
+  return n;
+}

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { reducedMotion } from '../lib/fx';
 import { eur } from '../lib/format';
 import { monthLabel, monthShort } from '../lib/dates';
 
@@ -6,6 +7,15 @@ import { monthLabel, monthShort } from '../lib/dates';
 
 export function Donut({ data, total }) {
   const [sel, setSel] = useState(null);
+  // L'anneau se dessine au montage (0 → 1)
+  const [grow, setGrow] = useState(reducedMotion() ? 1 : 0);
+  useEffect(() => {
+    if (reducedMotion()) return;
+    let raf; const t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / 900); setGrow(1 - Math.pow(1 - k, 3)); if (k < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, []);
   const R = 70;
   const C = 2 * Math.PI * R;
   let acc = 0;
@@ -16,7 +26,7 @@ export function Donut({ data, total }) {
       <svg viewBox="0 0 200 200" className="w-[220px] h-[220px]" role="img" aria-label="Répartition des dépenses">
         <circle cx="100" cy="100" r={R} fill="none" stroke="var(--line)" strokeWidth="26" />
         {data.map((d, i) => {
-          const len = total > 0 ? (d.value / total) * C : 0;
+          const len = total > 0 ? (d.value / total) * C * grow : 0;
           const off = acc;
           acc += len;
           return (
@@ -99,11 +109,11 @@ export function LineChart({ base, sim, marks = [3000, 5000, 10000] }) {
           </g>
         ))}
         {lastClosed >= 0 && <rect x={P.l} y={P.t} width={Math.max(0, x(lastClosed) - P.l)} height={H - P.t - P.b} fill="#ffffff" opacity="0.03" />}
-        <path d={area} fill="url(#area)" />
-        <path d={path(base)} fill="none" stroke="#8fa8ff" strokeWidth="2.5" strokeLinejoin="round" />
-        {sim && <path d={path(sim)} fill="none" stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 4" />}
+        <path d={area} fill="url(#area)" className="fade-late" />
+        <path d={path(base)} pathLength="1" className="draw" fill="none" stroke="#8fa8ff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        {sim && <path d={path(sim)} fill="none" stroke="#ffc24b" strokeWidth="2" strokeDasharray="5 4" />}
         {base.map((d, i) => d.closed && <circle key={d.key} cx={x(i)} cy={y(d.capital)} r="3" fill="#8fa8ff" />)}
-        <circle cx={x(n - 1)} cy={y(base[n - 1].capital)} r="4.5" fill="#8fa8ff" stroke="var(--bg)" strokeWidth="2" />
+        <circle cx={x(n - 1)} cy={y(base[n - 1].capital)} r="4.5" fill="#8fa8ff" stroke="var(--bg)" strokeWidth="2" className="fade-late" />
         {base.map((d, i) => (i % 3 === 0 || i === n - 1) && <text key={`l${d.key}`} x={x(i)} y={H - 8} textAnchor="middle" fontSize="9.5" fill="var(--faint)">{monthShort(d.key)}</text>)}
         {h && <><line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#52525b" /><circle cx={x(hover)} cy={y(h.capital)} r="5" fill="#fff" /></>}
       </svg>

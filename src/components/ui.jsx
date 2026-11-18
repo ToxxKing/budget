@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMounted } from './motion';
 import { X, Trash2 } from 'lucide-react';
 
 export function Sheet({ open, onClose, title, children, full = false }) {
@@ -13,7 +14,7 @@ export function Sheet({ open, onClose, title, children, full = false }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center anim-fade" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[6px]" onClick={onClose} />
       <div className={`anim-up relative w-full max-w-[520px] rounded-t-[28px] border-t border-line bg-card overflow-y-auto overscroll-contain sheet-pad ${full ? 'h-[92vh]' : 'max-h-[90vh]'}`}>
         <div className="mx-auto mt-2 mb-3 h-1.5 w-10 rounded-full bg-line2" />
         <div className="flex items-center justify-between mb-4 gap-3">
@@ -35,10 +36,10 @@ export const Field = ({ label, hint, children }) => (
 );
 
 export const PrimaryBtn = ({ children, className = '', ...p }) => (
-  <button {...p} className={`min-h-[52px] w-full rounded-2xl bg-accent text-accent-ink font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[.98] transition disabled:opacity-40 ${className}`}>{children}</button>
+  <button {...p} className={`press min-h-[52px] w-full rounded-2xl bg-accent text-accent-ink font-semibold text-[17px] flex items-center justify-center gap-2 active:scale-[.98] transition disabled:opacity-40 ${className}`}>{children}</button>
 );
 export const GhostBtn = ({ children, className = '', ...p }) => (
-  <button {...p} className={`min-h-[48px] rounded-2xl bg-card2 border border-line font-medium text-[15px] flex items-center justify-center gap-2 px-4 active:scale-[.98] transition disabled:opacity-40 ${className}`}>{children}</button>
+  <button {...p} className={`press min-h-[48px] rounded-2xl bg-card2 border border-line font-medium text-[15px] flex items-center justify-center gap-2 px-4 active:scale-[.98] transition disabled:opacity-40 ${className}`}>{children}</button>
 );
 export const DangerBtn = ({ children, className = '', ...p }) => (
   <button {...p} className={`min-h-[48px] rounded-2xl bg-bad text-black font-semibold text-[15px] flex items-center justify-center gap-2 px-4 active:scale-[.98] transition ${className}`}>{children}</button>
@@ -58,11 +59,12 @@ export function Segmented({ options, value, onChange, className = '' }) {
 }
 
 export function Bar({ value, max, color, height = 10 }) {
+  const mounted = useMounted();
   const p = max > 0 ? Math.min(100, (value / max) * 100) : value > 0 ? 100 : 0;
-  const c = color || (value > max ? 'var(--bad)' : p >= 80 ? 'var(--warn)' : 'var(--accent)');
+  const c = value > max ? 'var(--bad)' : color || (p >= 80 ? 'var(--warn)' : 'var(--accent)');
   return (
     <div className="w-full rounded-full bg-line overflow-hidden" style={{ height }}>
-      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${p}%`, background: c }} />
+      <div className="bar-fill h-full rounded-full" style={{ width: `${mounted ? p : 0}%`, background: c }} />
     </div>
   );
 }

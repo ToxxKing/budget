@@ -99,6 +99,9 @@ export default function Settings() {
       {/* Paramètres */}
       <div className="label mb-2 px-1">Paramètres</div>
       <section className="card p-4 mb-5">
+        <Field label="Prénom (pour le bonjour de l'accueil)">
+          <input id="set-name" key={`name-${state.settings.firstName}`} defaultValue={state.settings.firstName || ''} onBlur={(e) => { const v = e.target.value.trim(); if (v !== (state.settings.firstName || '')) setSetting('firstName', v); }} className="input w-full" autoComplete="given-name" />
+        </Field>
         <Field label="Salaire net mensuel (€)">
           <input id="set-salary" key={`sal-${state.settings.salary}`} inputMode="decimal" defaultValue={toInput(state.settings.salary)} onBlur={(e) => { const v = parseAmount(e.target.value); if (v !== state.settings.salary) { setSetting('salary', v); notify('Salaire mis à jour'); } }} className="input num w-full" />
         </Field>

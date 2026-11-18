@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Plus, Zap, Lock, Unlock, CloudUpload, Smartphone, X, ChevronRight as Go } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Plus, Zap, Lock, Unlock, CloudUpload, Smartphone, X, Flame, ChevronRight as Go } from 'lucide-react';
 import { useApp } from '../lib/store';
 import { CATS } from '../lib/defaults';
 import { CAT_ICONS } from '../components/icons';
 import { eur } from '../lib/format';
 import { addMonths, clampKey, formatDay, monthLabel, todayKey, monthName } from '../lib/dates';
-import { canClose, dueInfo, expensesOf, forecastMonth, isEnvelope, lastClosedMonth, paidKey, planMonth, weekEnvelope } from '../lib/engine';
+import { canClose, dueInfo, expensesOf, forecastMonth, isEnvelope, lastClosedMonth, paidKey, planMonth, streakDays, weekEnvelope } from '../lib/engine';
 import { isIOS, isStandalone } from '../lib/storage';
 import { Bar, CatIcon, Chip, PageTitle, SectionTitle } from '../components/ui';
+import { AnimatedNumber, TiltCard, Ring } from '../components/motion';
+import { confetti, confettiFrom } from '../lib/fx';
 
 function dueChip(info, done, isIncome) {
   if (done) return <Chip tone="good"><Check size={12} strokeWidth={3} /> {isIncome ? 'Reçu' : 'Payé'}</Chip>;
@@ -50,25 +52,33 @@ export default function Home() {
       return da - db || b.it.amount - a.it.amount;
     });
   const remaining = dues.filter((d) => d.it.cat !== 'revenu' && !state.paid[d.k]).reduce((a, d) => a + d.it.amount, 0);
-  const toggle = (d) => {
+  const toggle = (d, ev) => {
     if (snap) return;
     const on = !!state.paid[d.k];
+    if (!on) {
+      confettiFrom(ev?.currentTarget?.querySelector('[data-check]'), { count: 18, power: 0.7, spread: 1.4 });
+      const left = dues.filter((x) => x.it.cat !== 'revenu' && !state.paid[x.k] && x.k !== d.k).length;
+      if (left === 0 && d.it.cat !== 'revenu') setTimeout(() => { confetti({ y: window.innerHeight * 0.35, count: 120, power: 1.5, spread: 1.7 }); notify('Toutes les échéances sont réglées, bravo !', 'party'); }, 250);
+    }
     update((s) => {
       const paid = { ...s.paid };
       if (on) delete paid[d.k]; else paid[d.k] = { at: new Date().toISOString(), amount: d.it.amount };
       return { ...s, paid };
     });
-    notify(on ? `${d.it.name} : décoché` : `${d.it.name} : ${d.it.cat === 'revenu' ? 'reçu' : 'payé'} ✓`);
+    notify(on ? `${d.it.name} : décoché` : d.it.cat === 'revenu' ? `${d.it.name} reçu, super !` : `${d.it.name} réglé`, on ? 'info' : 'good');
   };
 
   const envelopes = state.items.filter(isEnvelope);
+  const live = isCurrent && !snap;
+  const streak = live ? streakDays(state, now) : 0;
   const recent = [...state.expenses].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
   const itemsById = new Map(state.items.map((i) => [i.id, i]));
   const reopenable = snap && lastClosedMonth(state) === key;
 
   return (
     <div>
-      <PageTitle eyebrow={now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} title="Cockpit" />
+      <PageTitle eyebrow={now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+        title={`${now.getHours() >= 18 || now.getHours() < 5 ? 'Bonsoir' : 'Bonjour'}${state.settings.firstName ? ` ${state.settings.firstName}` : ''}`} />
 
       {showInstall && (
         <div className="mb-3 card p-4 flex gap-3 items-start">
@@ -102,33 +112,49 @@ export default function Home() {
       </div>
 
       {/* Carte principale */}
-      <section className="applecard p-5 mb-5">
+      <TiltCard className={`applecard p-5 mb-3 ${rate >= 50 ? 'warm' : ''}`}>
         <div className="flex items-center justify-between gap-2">
           <span className="text-[13px] font-medium text-muted">{snap ? 'Épargné ce mois' : 'Reste à vivre disponible'}</span>
           <Chip className="!bg-white/10 !text-white/80">{snap ? 'Réel' : key > tKey ? 'Prévu' : 'Prévision'}</Chip>
         </div>
-        <div className={`num mt-2 text-[46px] font-extrabold tracking-tight leading-none ${fc.saved < 0 ? 'text-bad' : ''}`}>{eur(fc.saved)}</div>
+        <AnimatedNumber value={fc.saved} format={(v) => eur(v)} className={`num block mt-2 text-[46px] font-extrabold tracking-tight leading-none ${fc.saved < 0 ? 'text-bad' : ''}`} />
         <div className="mt-1 text-[13px] text-muted">
           {snap ? `sur ${eur(snap.income)} reçus · prévu ${eur(snap.planned.saved)}` : `après charges, dettes et enveloppes, sur ${eur(fc.income)} de revenus`}
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-black/30 p-3">
             <div className="text-[12px] text-muted">Total dépensé</div>
-            <div className="num text-[20px] font-bold">{eur(fc.spent)}</div>
+            <AnimatedNumber value={fc.spent} format={(v) => eur(v)} className="num block text-[20px] font-bold" />
             <div className="num text-[11px] text-faint">sur {eur(plan.expenses)} prévus</div>
           </div>
-          <div className="rounded-2xl bg-black/30 p-3">
-            <div className="text-[12px] text-muted">Taux d'épargne</div>
-            <div className={`num text-[20px] font-bold ${rate >= 50 ? 'text-good' : rate >= 20 ? 'text-warn' : 'text-bad'}`}>{rate} %</div>
-            <div className="text-[11px] text-faint">{rate >= 50 ? 'Excellent' : rate >= 20 ? 'Correct' : 'À surveiller'}</div>
+          <div className="rounded-2xl bg-black/30 p-3 flex items-center gap-3">
+            <Ring size={38} stroke={4.5} value={rate / 100} color={rate >= 50 ? 'var(--good)' : rate >= 20 ? 'var(--warn)' : 'var(--bad)'} />
+            <div className="min-w-0">
+            <div className="text-[12px] text-muted">Épargne</div>
+            <AnimatedNumber value={rate} format={(v) => `${Math.round(v)} %`} className={`num block text-[20px] font-bold ${rate >= 50 ? 'text-good' : rate >= 20 ? 'text-warn' : 'text-bad'}`} />
+            <div className="text-[11px] text-faint">{rate >= 50 ? 'Excellent !' : rate >= 20 ? 'Pas mal du tout' : 'On remonte ça'}</div>
+            </div>
           </div>
         </div>
         <div className="mt-4 h-2 rounded-full bg-black/40 overflow-hidden flex" aria-hidden="true">
           {['fixe', 'vie', 'shopping', 'dette'].map((c) => plan.byCat[c] > 0 && (
-            <div key={c} style={{ width: `${(plan.byCat[c] / Math.max(plan.income, plan.expenses)) * 100}%`, background: CATS[c].color }} />
+            <div key={c} className="bar-fill" style={{ width: `${(plan.byCat[c] / Math.max(plan.income, plan.expenses)) * 100}%`, background: CATS[c].color }} />
           ))}
         </div>
-      </section>
+      </TiltCard>
+      {live && streak > 0 && (
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-[#ffc24b]/25 bg-[#ffc24b]/[.07] px-4 py-3">
+          <Flame size={22} className="flicker text-[#ffc24b] shrink-0" fill="#ffc24b" fillOpacity={0.25} />
+          <div className="flex-1 text-[14px]">
+            <div className="font-semibold"><AnimatedNumber value={streak} format={(v) => `${Math.round(v)} jour${Math.round(v) > 1 ? 's' : ''}`} /> dans les clous</div>
+            <div className="text-muted text-[13px]">Tes enveloppes restent sous le budget prévu à ce jour.</div>
+          </div>
+        </div>
+      )}
+      {live && streak === 0 && envelopes.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-line px-4 py-3 text-[13px] text-muted">Tes enveloppes sont un peu au-dessus du rythme prévu. Quelques jours tranquilles et la série repart.</div>
+      )}
+      {!live && <div className="mb-2" />}
 
       {/* Enveloppes */}
       <section className="mb-5">
@@ -145,14 +171,14 @@ export default function Home() {
               return (
                 <div key={env.id} className="p-4">
                   <div className="flex items-center gap-3 mb-2.5">
-                    <CatIcon icon={Icon} color={CATS[env.cat].color} />
+                    <span className={w.remaining < 0 ? 'wiggle' : ''}><CatIcon icon={Icon} color={CATS[env.cat].color} /></span>
                     <div className="min-w-0 flex-1">
                       <div className="text-[15px] font-semibold truncate">{env.name}</div>
                       <div className="num text-[13px] text-muted">{eur(w.spentWeek, 0)} / {eur(avail, 0)} cette semaine</div>
                     </div>
                     <button onClick={() => openSheet('expense', { itemId: env.id })} className="tap grid place-items-center rounded-full bg-card2 border border-line text-accent" aria-label={`Ajouter une dépense : ${env.name}`}><Plus size={20} /></button>
                   </div>
-                  <Bar value={w.spentWeek} max={avail} />
+                  <Bar value={w.spentWeek} max={avail} color={CATS[env.cat].color} />
                   <div className="num mt-2 flex justify-between gap-2 text-[12px]">
                     <span className={w.remaining < 0 ? 'text-bad font-semibold' : 'text-muted'}>
                       {w.remaining < 0 ? `Dépassement ${eur(-w.remaining, 0)}` : `Reste ${eur(w.remaining, 0)}`}
@@ -172,14 +198,14 @@ export default function Home() {
                   <div className="min-w-0 flex-1"><div className="text-[15px] font-semibold truncate">{env.name}</div>
                     <div className="num text-[13px] text-muted">{eur(spent)} / {eur(budget)}</div></div>
                 </div>
-                <Bar value={spent} max={budget} />
+                <Bar value={spent} max={budget} color={CATS[env.cat].color} />
               </div>
             );
           })}
         </div>
         {isCurrent && !snap && (
           <button onClick={() => openSheet('expense', { itemId: envelopes[0]?.id })}
-            className="mt-3 min-h-[56px] w-full rounded-2xl bg-accent text-accent-ink font-bold text-[17px] flex items-center justify-center gap-2 active:scale-[.98] transition">
+            className="press mt-3 min-h-[56px] w-full rounded-2xl bg-accent text-accent-ink font-bold text-[17px] flex items-center justify-center gap-2 shadow-[0_12px_30px_-10px_rgba(143,168,255,.7)]">
             <Zap size={20} /> Dépense rapide
           </button>
         )}
@@ -210,11 +236,11 @@ export default function Home() {
             const on = !!state.paid[d.k];
             const income = d.it.cat === 'revenu';
             return (
-              <button key={d.k} onClick={() => toggle(d)} disabled={!!snap} aria-pressed={on}
-                className="w-full min-h-[64px] flex items-center gap-3 px-4 text-left active:bg-card2 disabled:active:bg-transparent">
-                <span className={`h-7 w-7 shrink-0 rounded-full border-2 grid place-items-center transition ${on ? 'bg-good border-good text-black' : 'border-line2'}`}>{on && <Check size={16} strokeWidth={3} />}</span>
+              <button key={d.k} onClick={(e) => toggle(d, e)} disabled={!!snap} aria-pressed={on}
+                className="row-press w-full min-h-[64px] flex items-center gap-3 px-4 text-left active:bg-card2 disabled:active:bg-transparent">
+                <span data-check className={`h-7 w-7 shrink-0 rounded-full border-2 grid place-items-center transition-colors duration-300 ${on ? 'bg-good border-good text-black' : 'border-line2'}`}>{on && <Check size={16} strokeWidth={3} className="pop" />}</span>
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-[15px] truncate ${on ? 'line-through text-faint' : ''}`}>{d.it.name}</span>
+                  <span className={`block text-[15px] truncate`}><span className={`strike ${on ? 'on text-faint' : ''}`}>{d.it.name}</span></span>
                   <span className="mt-1 flex">{dueChip(d.info, on, income)}</span>
                 </span>
                 <span className={`num font-semibold ${on ? 'text-faint' : income ? 'text-good' : ''}`}>{income ? '+' : ''}{eur(d.it.amount)}</span>

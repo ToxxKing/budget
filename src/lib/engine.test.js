@@ -114,3 +114,16 @@ describe('migration', () => {
     expect(s.expenses[0].date).toBe('2026-11-18');
   });
 });
+
+import { streakDays } from './engine';
+describe('série', () => {
+  it('compte les jours sous le budget proratisé', () => {
+    const s = defaultState();
+    const now = new Date(2026, 10, 18);
+    expect(streakDays(s, now)).toBe(18);
+    // 380 € d'enveloppes sur 30 jours ≈ 12,67 €/jour. 250 € le 10 → au-dessus jusqu'au jour 19.
+    s.expenses.push({ id: 'x', itemId: 'sorties', amount: 250, date: '2026-11-10', note: '' });
+    expect(streakDays(s, now)).toBe(0);
+    expect(streakDays(s, new Date(2026, 10, 25))).toBe(6);
+  });
+});

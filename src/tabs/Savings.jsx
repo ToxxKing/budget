@@ -5,6 +5,7 @@ import { eur, parseAmount, toInput } from '../lib/format';
 import { addMonths, monthDiff, monthLabel, monthRange, monthShort, todayKey } from '../lib/dates';
 import { currentBalances, currentCapital, firstOpenMonth, goalPlan, potMonthly, potValue, project, reachDate, shares, standardMonth } from '../lib/engine';
 import { Bar, CatIcon, Chip, Field, MonthSelect, PageTitle, SectionTitle } from '../components/ui';
+import { AnimatedNumber } from '../components/motion';
 
 const PALIERS = [{ v: 3000, name: 'Palier 1' }, { v: 5000, name: 'Palier 2' }, { v: 10000, name: 'Objectif principal' }];
 
@@ -30,12 +31,12 @@ export default function Savings() {
     <div>
       <PageTitle eyebrow="Objectifs & paliers" title="Épargne" />
 
-      <section className="applecard p-5 mb-5">
+      <section className="applecard warm p-5 mb-5">
         <div className="flex items-center justify-between">
           <span className="text-[13px] text-muted font-medium">Capital réel</span>
           <Chip className="!bg-white/10 !text-white/80">{closedCount ? `${closedCount} mois clôturé${closedCount > 1 ? 's' : ''}` : 'Solde de départ'}</Chip>
         </div>
-        <div className="num mt-1 text-[44px] font-extrabold tracking-tight leading-none">{eur(capital)}</div>
+        <AnimatedNumber value={capital} format={(v) => eur(v)} className="num block mt-1 text-[44px] font-extrabold tracking-tight leading-none" />
         <div className="mt-4 grid grid-cols-3 gap-2 text-[12px]">
           <div className="rounded-xl bg-black/30 p-2.5"><div className="text-muted">Fin {monthShort(openKey)}</div><div className="num text-[15px] font-bold">{eur(endOpen ?? capital, 0)}</div></div>
           <div className="rounded-xl bg-black/30 p-2.5"><div className="text-muted">Surplus type</div><div className="num text-[15px] font-bold text-good">+{eur(std.saved, 0)}</div></div>
@@ -72,7 +73,7 @@ export default function Savings() {
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div><div className="text-[13px] text-muted">{p.name}</div><div className="num text-[22px] font-bold">{eur(p.v)}</div></div>
                 <div className="text-right">
-                  {done ? <Chip tone="good"><Check size={13} /> Atteint</Chip> : r.key ? <Chip tone="accent"><Calendar size={13} /> {monthLabel(r.key)}</Chip> : <Chip tone="bad">Hors de portée</Chip>}
+                  {done ? <Chip tone="good" className="pop"><Check size={13} /> Atteint, bravo !</Chip> : r.key ? <Chip tone="accent"><Calendar size={13} /> {monthLabel(r.key)}</Chip> : <Chip tone="bad">Hors de portée</Chip>}
                   {!done && r.key && <div className="text-[12px] text-faint mt-1">dans {Math.max(0, monthDiff(tKey, r.key))} mois</div>}
                 </div>
               </div>
@@ -93,7 +94,7 @@ export default function Savings() {
         {parseAmount(goal.target) > 0 && (
           <div className="rounded-2xl bg-card2 p-4">
             <div className="text-[13px] text-muted">À mettre de côté chaque mois</div>
-            <div className="num text-[30px] font-extrabold leading-tight">{eur(g.perMonth, 0)}</div>
+            <AnimatedNumber value={g.perMonth} format={(v) => eur(v, 0)} duration={500} className="num block text-[30px] font-extrabold leading-tight" />
             <div className="num text-[13px] mt-1 text-muted">pendant {g.months} mois, de {monthLabel(g.from).toLowerCase()} à {monthLabel(goal.deadline).toLowerCase()}</div>
             <div className="mt-3"><Bar value={g.perMonth} max={Math.max(1, g.capacity)} color={g.feasible ? 'var(--good)' : 'var(--bad)'} /></div>
             <div className={`num mt-1.5 text-[13px] ${g.feasible ? 'text-good' : 'text-bad'}`}>
@@ -123,7 +124,7 @@ export default function Savings() {
                 </div>
                 <div className="num text-[18px] font-bold">{p.pct} %</div>
               </button>
-              {p.target ? <div className="mt-3"><Bar value={value} max={p.target} color="#5eead4" height={8} /></div> : null}
+              {p.target ? <div className="mt-3"><Bar value={value} max={p.target} color="#5ee0ff" height={8} /></div> : null}
               <input type="range" id={`pot-${p.id}`} min="0" max="100" step="5" value={p.pct} aria-label={`Part de l'épargne pour ${p.name}`}
                 onChange={(e) => { const v = Number(e.target.value); update((s) => ({ ...s, pots: s.pots.map((x) => (x.id === p.id ? { ...x, pct: v } : x)) })); }} />
               <div className="num text-[12px] text-faint flex flex-wrap justify-between gap-x-3 gap-y-1">
